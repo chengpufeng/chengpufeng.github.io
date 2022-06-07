@@ -2,9 +2,9 @@
 title: 关于HTTPS
 tags: [计算机网络,HTTPS,TLS,RSA,ECDHE,数字证书,CA机构]
 date: 2022-06-06 01:00:51
+mathjax: true
+categories: CS笔记
 ---
-
-
 
 
 
@@ -53,7 +53,7 @@ RSA算法中，客户端产生随机密钥，通过服务端传来的公钥进�
 
 ### 第四次握手
 
-服务端也发送**Change Cipher Spec**和**Encrypted Handshake Message **，握手完成。
+服务端也发送**Change Cipher Spec**和**Encrypted Handshake Message**，握手完成。
 
 ### 缺陷
 

@@ -1,7 +1,7 @@
 ---
-title: forinterview
+title: 2022年2月末开始随便写的针对面试（很乱）
 date: 2022-06-04 20:27:37
-tag: hello
+categories: CS笔记
 ---
 ## 系统
 

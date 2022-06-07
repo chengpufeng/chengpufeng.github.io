@@ -1,1 +1,1 @@
-hexo clean && hexo deploy
+hexo clean && hexo g -d
