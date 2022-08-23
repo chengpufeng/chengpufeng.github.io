@@ -1,7 +1,8 @@
 ---
-title: EffectiveModernC++笔记1-类型推导
+title: 《EffectiveModernCpp》-1-类型推导
 date: 2022-06-14 20:26:21
 tags: C++
+categories: 《EffectiveModernCpp》笔记
 ---
 
 

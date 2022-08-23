@@ -2,7 +2,6 @@
 title: MySQL的隔离级别
 date: 2022-06-05 18:00:43
 tags: MySQL
-categories: CS笔记
 ---
 
 # 关于MySQL的隔离级别
