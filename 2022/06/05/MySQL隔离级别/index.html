@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.bevan.club","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="关于MySQL的隔离级别前几天美团的面试问到MySQL的隔离级别、加锁、索引等知识，由于之前没怎么深入学习过数据库，所以答得并不是很好。后来反问环节中，面试官建议可以在学习的时候多思考一下，如果需要自己实现这些功能的话会怎么做，这样进行学习效率会很高。 之后计划跟一下尚硅谷的课程https:&#x2F;&#x2F;www.bilibili.com&#x2F;video&#x2F;BV1iq4y1u7vj ，系统性的学习一下MySQL数据">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL的隔离级别">
+<meta property="og:url" content="http://www.bevan.club/2022/06/05/MySQL%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB/index.html">
+<meta property="og:site_name" content="Bevan&#39;s Blog">
+<meta property="og:description" content="关于MySQL的隔离级别前几天美团的面试问到MySQL的隔离级别、加锁、索引等知识，由于之前没怎么深入学习过数据库，所以答得并不是很好。后来反问环节中，面试官建议可以在学习的时候多思考一下，如果需要自己实现这些功能的话会怎么做，这样进行学习效率会很高。 之后计划跟一下尚硅谷的课程https:&#x2F;&#x2F;www.bilibili.com&#x2F;video&#x2F;BV1iq4y1u7vj ，系统性的学习一下MySQL数据">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052109527.png?token=AHMFLSEUNLAYZXZ7733BWNLCTSVVM">
+<meta property="article:published_time" content="2022-06-05T10:00:43.000Z">
+<meta property="article:modified_time" content="2022-08-24T11:00:22.791Z">
+<meta property="article:author" content="Bevan c">
+<meta property="article:tag" content="MySQL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052109527.png?token=AHMFLSEUNLAYZXZ7733BWNLCTSVVM">
+
+<link rel="canonical" href="http://www.bevan.club/2022/06/05/MySQL%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>MySQL的隔离级别 | Bevan's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+<script type="text/javascript" src="/js/oh-my-diana.user.js"></script>
+
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Bevan's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://www.bevan.club/2022/06/05/MySQL%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bevan c">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Bevan's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MySQL的隔离级别
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-06-05 18:00:43" itemprop="dateCreated datePublished" datetime="2022-06-05T18:00:43+08:00">2022-06-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-08-24 19:00:22" itemprop="dateModified" datetime="2022-08-24T19:00:22+08:00">2022-08-24</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="关于MySQL的隔离级别"><a href="#关于MySQL的隔离级别" class="headerlink" title="关于MySQL的隔离级别"></a>关于MySQL的隔离级别</h1><p>前几天美团的面试问到MySQL的隔离级别、加锁、索引等知识，由于之前没怎么深入学习过数据库，所以答得并不是很好。后来反问环节中，面试官建议可以在学习的时候多思考一下，如果需要自己实现这些功能的话会怎么做，这样进行学习效率会很高。</p>
+<p>之后计划跟一下尚硅谷的课程<a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1iq4y1u7vj">https://www.bilibili.com/video/BV1iq4y1u7vj</a> ，系统性的学习一下MySQL数据库。</p>
+<span id="more"></span>
+
+<h2 id="隔离级别"><a href="#隔离级别" class="headerlink" title="隔离级别"></a>隔离级别</h2><h3 id="隔离性"><a href="#隔离性" class="headerlink" title="隔离性"></a>隔离性</h3><p>隔离性要求一个事务对数据库中数据的修改，在未提交完成前对于其他事务是不可见的。</p>
+<p>SQL标准中定义了四种隔离级别：</p>
+<ul>
+<li>未提交读</li>
+<li>已提交读</li>
+<li>可重复读</li>
+<li>可串行化</li>
+</ul>
+<h4 id="未提交读（READ-UNCOMMITED）"><a href="#未提交读（READ-UNCOMMITED）" class="headerlink" title="未提交读（READ UNCOMMITED）"></a>未提交读（READ UNCOMMITED）</h4><p>未提交读这种隔离级别中，对数据的修改，即使还未提交，对其他的事务也是可见的。事务可以读取未提交的数据，也称为“脏读”，读到的数据为“脏数据”。未提交前，数据是不确定的，可能会被回滚，也可能会有后续操作的变化。</p>
+<p>例：发工资时，应发5000，发了10000，但还未提交，员工可以看到自己账户上多了10000，此时财务发现发错了，回滚事务，重新发5000。</p>
+<h4 id="已提交读（READ-COMMITED）"><a href="#已提交读（READ-COMMITED）" class="headerlink" title="已提交读（READ COMMITED）"></a>已提交读（READ COMMITED）</h4><p>这个隔离级别是大多数操作系统的默认隔离级别，也是用的最多的。常见Oracle、SQL Server等，但MySQL默认隔离级别是<strong>可重复读</strong>。已提交读满足前面隔离性的简单定义。一个事务对数据所做的修改，只有在提交后才能看到。</p>
+<p>例：发工资时，财务声明已经发了工资，但员工查到账户中并无增长，此时可能事务还未完成。过一段时间事务完成，就可以查到。</p>
+<h4 id="可重复读（REPEATABLE-READ）"><a href="#可重复读（REPEATABLE-READ）" class="headerlink" title="可重复读（REPEATABLE READ）"></a>可重复读（REPEATABLE READ）</h4><p>这个级别保证了在同一事务中多次读取同样的记录的结果是一致的。相比可重复读这个级别，已提交读又可称为不可重复读。</p>
+<p>查询表的隔离界别：<code>show variables like &#39;%iso%&#39;;</code> <code>select @@transaction_isolation;</code></p>
+<p>设置表的隔离级别：<code>set session transaction isolation level read committed;</code> </p>
+<p><code>read uncommitted</code>，<code>repeatable read</code>，<code>serializable</code></p>
+<p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052109527.png?token=AHMFLSEUNLAYZXZ7733BWNLCTSVVM" alt="img"></p>
+<p>此时如果开两个事务，事务1进行查询，事务2进行插入，即使事务2提交了事务，事务1也是查询不到事务2提交了的事务的。</p>
+<p>创建表<code> create table test(num integer);insert into test values(1),(2),(3);</code></p>
+<p>首先事务1和2都<code>begin;</code>，事务2<code>insert into test values(10);commit;</code>，此时事务1即使<code>select * from test;</code>也是查不到事务2刚刚insert进的数据的，只有事务1也<code>commit;</code>后才能查到。</p>
+<h4 id="可串行化（SERIALIZABLE）"><a href="#可串行化（SERIALIZABLE）" class="headerlink" title="可串行化（SERIALIZABLE）"></a>可串行化（SERIALIZABLE）</h4><p>最高的隔离级别。串行化会在读取的每一行上都加共享锁，所以会导致大量的超时和锁竞争问题。在实际业务中很少会使用这个隔离级别。除非是要求严格数据一致性，才可能会使用。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>隔离性从低到高：未提交读，已提交读，可重复读，可串行化。</p>
+<p>并发性从低到高：可串行化，可重复读，已提交读，未提交读。</p>
+<p>隔离性越高，锁的粒度越细，并发性自然下降。</p>
+<p>四种隔离级别采用不同的锁来实现，若读取的是同一数据，可能会发生问题。</p>
+<p>脏读（Dirty Read）：某个事务已更新了一份数据，另个事务在此时读取了同一份数据（在未提交读级别可能读到另个事务的未提交数据），由于某些原因，前一事务Rollback了，则后一事务所读取的数据就会是不正确的。</p>
+<p>不可重复读（Non-repeatable Read）：在一个事务的两次查询之中数据不同，可能两次查询过程中插入了一个事务更新了原有数据。</p>
+<p>幻读（Phantom Read）：在一个事务的两次查询中数据行数不一致，例如一个事务查询了几行数据，而另一个事务在此时插入了新的几行数据，先前的事务在接下来的查询中，就会发现有几行数据是它先前所没有的。</p>
+<table>
+<thead>
+<tr>
+<th>隔离级别</th>
+<th>脏读</th>
+<th>不可重复读</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>未提交读</td>
+<td>⚪</td>
+<td>⚪</td>
+<td>⚪</td>
+</tr>
+<tr>
+<td>已提交读</td>
+<td>×</td>
+<td>⚪</td>
+<td>⚪</td>
+</tr>
+<tr>
+<td>可重复读</td>
+<td>×</td>
+<td>×</td>
+<td>⚪</td>
+</tr>
+<tr>
+<td>可串行化</td>
+<td>×</td>
+<td>×</td>
+<td>×</td>
+</tr>
+</tbody></table>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MySQL/" rel="tag"># MySQL</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/06/04/forinterview/" rel="prev" title="2022年2月末开始随便写的针对面试（很乱）">
+      <i class="fa fa-chevron-left"></i> 2022年2月末开始随便写的针对面试（很乱）
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/06/05/C-%E7%BA%BF%E7%A8%8B%E6%B1%A0%E5%AE%9E%E7%8E%B0/" rel="next" title="C++线程池实现">
+      C++线程池实现 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B3%E4%BA%8EMySQL%E7%9A%84%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">1.</span> <span class="nav-text">关于MySQL的隔离级别</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">1.1.</span> <span class="nav-text">隔离级别</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9A%94%E7%A6%BB%E6%80%A7"><span class="nav-number">1.1.1.</span> <span class="nav-text">隔离性</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9C%AA%E6%8F%90%E4%BA%A4%E8%AF%BB%EF%BC%88READ-UNCOMMITED%EF%BC%89"><span class="nav-number">1.1.1.1.</span> <span class="nav-text">未提交读（READ UNCOMMITED）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B7%B2%E6%8F%90%E4%BA%A4%E8%AF%BB%EF%BC%88READ-COMMITED%EF%BC%89"><span class="nav-number">1.1.1.2.</span> <span class="nav-text">已提交读（READ COMMITED）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%EF%BC%88REPEATABLE-READ%EF%BC%89"><span class="nav-number">1.1.1.3.</span> <span class="nav-text">可重复读（REPEATABLE READ）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E4%B8%B2%E8%A1%8C%E5%8C%96%EF%BC%88SERIALIZABLE%EF%BC%89"><span class="nav-number">1.1.1.4.</span> <span class="nav-text">可串行化（SERIALIZABLE）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">1.1.1.5.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bevan c</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bevan c</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

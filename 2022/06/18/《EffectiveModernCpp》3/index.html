@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.bevan.club","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="智能指针原始指针的问题：  它的声明不能指示所指的是数组还是单个对象 它的声明没告诉你用完是否销毁 如果决定销毁，不知道使用delete还是其他析构机制 delete 还是 delete[] 很难保证销毁的执行路径上都执行了恰为一次的销毁操作。少一条路径就会资源泄露，多次会导致未定义行为 没有办法告诉你指针是否变成悬空指针（dangling pointers），即内存中无所指之物。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="《EffectiveModernCpp》-3-智能指针">
+<meta property="og:url" content="http://www.bevan.club/2022/06/18/%E3%80%8AEffectiveModernCpp%E3%80%8B3/index.html">
+<meta property="og:site_name" content="Bevan&#39;s Blog">
+<meta property="og:description" content="智能指针原始指针的问题：  它的声明不能指示所指的是数组还是单个对象 它的声明没告诉你用完是否销毁 如果决定销毁，不知道使用delete还是其他析构机制 delete 还是 delete[] 很难保证销毁的执行路径上都执行了恰为一次的销毁操作。少一条路径就会资源泄露，多次会导致未定义行为 没有办法告诉你指针是否变成悬空指针（dangling pointers），即内存中无所指之物。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206181138848.png">
+<meta property="article:published_time" content="2022-06-18T06:05:58.000Z">
+<meta property="article:modified_time" content="2022-08-24T11:00:22.795Z">
+<meta property="article:author" content="Bevan c">
+<meta property="article:tag" content="C++">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206181138848.png">
+
+<link rel="canonical" href="http://www.bevan.club/2022/06/18/%E3%80%8AEffectiveModernCpp%E3%80%8B3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>《EffectiveModernCpp》-3-智能指针 | Bevan's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+<script type="text/javascript" src="/js/oh-my-diana.user.js"></script>
+
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Bevan's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://www.bevan.club/2022/06/18/%E3%80%8AEffectiveModernCpp%E3%80%8B3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bevan c">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Bevan's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          《EffectiveModernCpp》-3-智能指针
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-06-18 14:05:58" itemprop="dateCreated datePublished" datetime="2022-06-18T14:05:58+08:00">2022-06-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-08-24 19:00:22" itemprop="dateModified" datetime="2022-08-24T19:00:22+08:00">2022-08-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E3%80%8AEffectiveModernCpp%E3%80%8B%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index"><span itemprop="name">《EffectiveModernCpp》笔记</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="智能指针"><a href="#智能指针" class="headerlink" title="智能指针"></a>智能指针</h1><p>原始指针的问题：</p>
+<ol>
+<li>它的声明不能指示所指的是数组还是单个对象</li>
+<li>它的声明没告诉你用完是否销毁</li>
+<li>如果决定销毁，不知道使用delete还是其他析构机制</li>
+<li>delete 还是 delete[]</li>
+<li>很难保证销毁的执行路径上都执行了恰为一次的销毁操作。少一条路径就会资源泄露，多次会导致未定义行为</li>
+<li>没有办法告诉你指针是否变成悬空指针（dangling pointers），即内存中无所指之物。</li>
+</ol>
+<span id="more"></span>
+
+<h2 id="条款十八：对于独占资源使用std-unique-ptr"><a href="#条款十八：对于独占资源使用std-unique-ptr" class="headerlink" title="条款十八：对于独占资源使用std::unique_ptr"></a>条款十八：对于独占资源使用std::unique_ptr</h2><p>unique_ptr体现转悠所有权（exclusive ownership）语义。移动一个std::unique_ptr将所有权从源指针转移到目的指针。（源指针设为null）。拷贝是不允许的，因此unique_ptr是一种止咳移动类型（move-only type）。默认情况下资源析构通过对unique_ptr内原始指针调用delete实现。</p>
+<p>常用于继承层次结构中对象的工厂函数的返回类型。</p>
+<h2 id="条款十九：对于共享资源使用std-shared-ptr"><a href="#条款十九：对于共享资源使用std-shared-ptr" class="headerlink" title="条款十九：对于共享资源使用std::shared_ptr"></a>条款十九：对于共享资源使用std::shared_ptr</h2><p>std::shared_ptr通过引用计数来确保它是否是最后一个指向某种资源的指针，关联资源并跟踪有多少shared_ptr指向该资源。</p>
+<p>引用计数有性能问题：</p>
+<ul>
+<li><code>std::shared_ptr</code>大小是原始指针的两倍，内部包含一个指向资源的原始指针，还包含一个指向资源引用计数值得原始指针（不是标准的实现，但标准库都这么实现）</li>
+<li>引用计数内存必须动态分配。引用计数和所指对象关联，但所指对象并不知道这件事。</li>
+<li>递减递增引用计数必须是原子性的。多个reader、writer可能在不同线程，如shared_ptr在一个线程析构（递减所指对象的引用计数），另一个线程指向相同对象，进行拷贝操作（递增同一个引用计数）。原子操作通常比非原子的要慢，应该假定读写它们是由开销的。</li>
+</ul>
+<p>std::shared_ptr构造函数不总是增加引用计数，另一种情况是移动构造函数的存在。从另一个std::shared_ptr移动构造新的会将原来的设置为null，意味着老的std::shared_ptr，不再指向资源，同时新的std::shared_ptr指向资源。这样不需要修改引用计数值。</p>
+<p>std::shared_ptr也支持自定义删除器。区别于std::unique_ptr，对于独占指针，删除器是智能指针的一部分，对于共享指针则不是。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> loggingDel = [](Widget *pw)        <span class="comment">//自定义删除器</span></span><br><span class="line">                  &#123;                     <span class="comment">//（和条款18一样）</span></span><br><span class="line">                      <span class="built_in">makeLogEntry</span>(pw);</span><br><span class="line">                      <span class="keyword">delete</span> pw;</span><br><span class="line">                  &#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">std::unique_ptr&lt;Widget, <span class="title">decltype</span><span class="params">(loggingDel)</span>&gt; </span></span><br><span class="line"><span class="function">    <span class="title">upw</span><span class="params">(<span class="keyword">new</span> Widget, loggingDel)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function">std::shared_ptr&lt;Widget&gt;</span></span><br><span class="line"><span class="function">    <span class="title">spw</span><span class="params">(<span class="keyword">new</span> Widget, loggingDel)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>不同的std::shared_ptr<Widget>可以传入不同的删除器，具有相同的类型，都可以放在相应类型的容器中。</p>
+<p>但自定义删除器的std::unique_ptr不行，因为删除器是其自身的一部分。</p>
+<p>std::shared_ptr的删除器放在堆上，std::shared_ptr的创建者利用其对自定义分配器的支持能力，可以将这部分内存放在任何地方。引用计数是另一个更大的数据结构的一部分，这个数据结构叫控制块（control block）。每个shared_ptr都有相应的控制块，控制块除了引用计数值还有自定义删除器的拷贝，自定义分配器的拷贝（如果指定了的话），次级引用计数weak count。</p>
+<p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206181138848.png" alt="item19_fig1"></p>
+<p>控制块的创建规则：</p>
+<ul>
+<li>std::make_shared总是创建一个控制块。</li>
+<li>从独占指针构造出std::shared_ptr时会创建控制块。</li>
+<li>从原始指针构造出std::shared_ptr时会创建控制块。从std::shared_ptr和std::weak_ptr作为构造函数实参创建共享指针时不会创建新的控制块。</li>
+</ul>
+<p>会出现的问题：重复从原始指针构造std::shared_ptr会出现重复销毁，是未定义的行为，替代方案是用std::make_shared；如果必须传给std::shared_ptr构造函数原始指针，可以直接传new出来的结果，<code>std::shared_ptr&lt;Widget&gt; spwq(new Widget, loggingDel)</code>，出现在一定需要传入自定义删除器的情况。</p>
+<p>另一个问题是用this指针作为std::shared_ptr构造函数实参的时候可能会导致创建多个控制块。可以用std::enable_shared_from_this<T>模板类作为基类继承，T为派生类，这种设计模式为奇异递归模板模式（<em>The Curiously Recurring Template Pattern</em>（<em>CRTP</em>）），当传入this实参时，用shared_from_this()。为了防止客户端在存在一个指向对象的共享指针之前就调用含shared_from_this的成员函数，派生类通常将其构造函数声明为private，并让客户端通过返回std::shared_ptr的工厂函数创建对象。</p>
+<p>通常情况下使用默认删除器和默认分配器，用std::make_shared创建std::shared_ptr，产生的控制块大小为3个word。对于每个被std::shared_ptr指向的对象来说，控制块中的虚函数机制产生的开销通常只在对象销毁时承受一次。</p>
+<h2 id="条款二十：当std-shared-ptr可能悬空时用std-weak-ptr"><a href="#条款二十：当std-shared-ptr可能悬空时用std-weak-ptr" class="headerlink" title="条款二十：当std::shared_ptr可能悬空时用std::weak_ptr"></a>条款二十：当std::shared_ptr可能悬空时用std::weak_ptr</h2><p>std::weak_ptr不能解引用，不能测试是否是空值，它是std::shared_ptr的增强。</p>
+<h2 id="条款二十一：优先用std-make-unqiue和std-make-shared而非new"><a href="#条款二十一：优先用std-make-unqiue和std-make-shared而非new" class="headerlink" title="条款二十一：优先用std::make_unqiue和std::make_shared而非new"></a>条款二十一：优先用std::make_unqiue和std::make_shared而非new</h2><p>std::make_shared是C++11标准，std::make_unique是C++14标准。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span>... Ts&gt;</span></span><br><span class="line"><span class="function">std::unique_ptr&lt;T&gt; <span class="title">make_unique</span><span class="params">(Ts&amp;&amp;... params)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">return</span> std::<span class="built_in">unique_ptr</span>&lt;T&gt;(<span class="keyword">new</span> <span class="built_in">T</span>(std::forward&lt;Ts&gt;(params)...));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>std::make_unqiue和std::make_shared是三个make函数中的两个：接收任意的多参数集合，完美转发到构造函数去动态分配一个对象，返回这个对象的指针。第三个make是std::allocate_shared，行为和std::make_shared一样，区别是第一个参数是用来动态分配内存的allocator对象。</p>
+<p>用make的原因：</p>
+<ul>
+<li><p>减少重复代码，源代码中的重复增加了编译的时间，导致目标代码冗杂。</p>
+</li>
+<li><p>与异常安全有关。内存泄露</p>
+</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">processWidget</span>(std::<span class="built_in">shared_ptr</span>&lt;Widget&gt;(<span class="keyword">new</span> Widget),  <span class="comment">//潜在的资源泄漏！</span></span><br><span class="line">              <span class="built_in">computePriority</span>());</span><br></pre></td></tr></table></figure>
+
+<p>编译器不按照执行顺序生成代码，new Widget必须在std::shared_ptr的构造函数之前执行，但computePriority()可能在构造函数之前，如果这个函数异常，就会产生内存泄露。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">processWidget</span>(std::<span class="built_in">make_shared</span>&lt;Widget&gt;(),   <span class="comment">//没有潜在的资源泄漏</span></span><br><span class="line">              <span class="built_in">computePriority</span>());</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>相比于直接new的效率提升。std::make_shared允许编译器生成更小更快的代码。<code>std::shared_ptr&lt;Widget&gt; spw(new Widget)</code>会进行内存分配，实际上进行了两次内存分配，分别是new Widget和控制块的分配。而用make只会分配一块内存，这种优化减少了程序的静态大小。</li>
+</ul>
+<p>make的限制：</p>
+<ul>
+<li>make函数不允许指定自定义删除其。</li>
+<li>语法细节中，完美转发使用小括号而非花括号。当构造函数重载，有使用std::initializer_list作为参数的重载形式和不用其作为参数的重载形式，花括号创建的对象倾向于使用初始化列表作为形参的重载形式。不能用花括号初始化所指对象，必须直接用new。可以用auto类型推导从花括号初始化创建std::initializer_list对象，然后传递给make函数。</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> upv = std::make_unique&lt;std::vector&lt;<span class="type">int</span>&gt;&gt;(<span class="number">10</span>,<span class="number">20</span>);<span class="comment">//创建10个元素，每个值20</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span> initList = &#123;<span class="number">10</span>,<span class="number">20</span>&#125;; <span class="comment">//std::initializer_list</span></span><br><span class="line"><span class="keyword">auto</span> spv = std::make_shared&lt;std::vector&lt;<span class="type">int</span>&gt;&gt;(initList);</span><br></pre></td></tr></table></figure>
+
+
+
+<p>对于std::shared_ptr和它的make函数，还有两个问题：</p>
+<ul>
+<li>有些类重载了operator new和delete。意味着对这些类型对象的全局内存分配和释放是不合常规的。分配的内存往往会大于sizeof(Widget)，因此用make函数去创建重载了new和delete类的对象是个不好的方法。</li>
+<li>make函数大小和速度的优势是将控制块和所指对象放在同一块内存中。直到最后的控制块要被销毁，所匹配的对象占用的内存才会被释放。对于用到weak_ptr的情况，只要它引用了一个控制块（weak count&gt;0），这个控制块就必须存在，即它的内存就必须保持分配。make分配的内存直到最后一个shared_ptr和weak_ptr被销毁，才会释放。如果对象类型很大，销毁对象和释放所占用内存之间可能有很大延迟。</li>
+</ul>
+<h2 id="条款二十二：当使用Pimpl惯用法，请在实现文件中定义特殊成员函数"><a href="#条款二十二：当使用Pimpl惯用法，请在实现文件中定义特殊成员函数" class="headerlink" title="条款二十二：当使用Pimpl惯用法，请在实现文件中定义特殊成员函数"></a>条款二十二：当使用Pimpl惯用法，请在实现文件中定义特殊成员函数</h2><p>Pimpl（pointer to implementation）惯用法，可以将类数据成员替换成一个指向包含具体实现的类的指针，并将主类的数据成员们移动到实现类去，这些数据成员的访问通过指针间接访问。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/C/" rel="tag"># C++</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/06/17/%E3%80%8AEffectiveModernCpp%E3%80%8B2/" rel="prev" title="《EffectiveModernCpp》-2-现代C++特性">
+      <i class="fa fa-chevron-left"></i> 《EffectiveModernCpp》-2-现代C++特性
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/08/24/%E3%80%8AEffectiveModernCpp%E3%80%8B4/" rel="next" title="《EffectiveModernCpp》4">
+      《EffectiveModernCpp》4 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88"><span class="nav-number">1.</span> <span class="nav-text">智能指针</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9D%A1%E6%AC%BE%E5%8D%81%E5%85%AB%EF%BC%9A%E5%AF%B9%E4%BA%8E%E7%8B%AC%E5%8D%A0%E8%B5%84%E6%BA%90%E4%BD%BF%E7%94%A8std-unique-ptr"><span class="nav-number">1.1.</span> <span class="nav-text">条款十八：对于独占资源使用std::unique_ptr</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9D%A1%E6%AC%BE%E5%8D%81%E4%B9%9D%EF%BC%9A%E5%AF%B9%E4%BA%8E%E5%85%B1%E4%BA%AB%E8%B5%84%E6%BA%90%E4%BD%BF%E7%94%A8std-shared-ptr"><span class="nav-number">1.2.</span> <span class="nav-text">条款十九：对于共享资源使用std::shared_ptr</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9D%A1%E6%AC%BE%E4%BA%8C%E5%8D%81%EF%BC%9A%E5%BD%93std-shared-ptr%E5%8F%AF%E8%83%BD%E6%82%AC%E7%A9%BA%E6%97%B6%E7%94%A8std-weak-ptr"><span class="nav-number">1.3.</span> <span class="nav-text">条款二十：当std::shared_ptr可能悬空时用std::weak_ptr</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9D%A1%E6%AC%BE%E4%BA%8C%E5%8D%81%E4%B8%80%EF%BC%9A%E4%BC%98%E5%85%88%E7%94%A8std-make-unqiue%E5%92%8Cstd-make-shared%E8%80%8C%E9%9D%9Enew"><span class="nav-number">1.4.</span> <span class="nav-text">条款二十一：优先用std::make_unqiue和std::make_shared而非new</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9D%A1%E6%AC%BE%E4%BA%8C%E5%8D%81%E4%BA%8C%EF%BC%9A%E5%BD%93%E4%BD%BF%E7%94%A8Pimpl%E6%83%AF%E7%94%A8%E6%B3%95%EF%BC%8C%E8%AF%B7%E5%9C%A8%E5%AE%9E%E7%8E%B0%E6%96%87%E4%BB%B6%E4%B8%AD%E5%AE%9A%E4%B9%89%E7%89%B9%E6%AE%8A%E6%88%90%E5%91%98%E5%87%BD%E6%95%B0"><span class="nav-number">1.5.</span> <span class="nav-text">条款二十二：当使用Pimpl惯用法，请在实现文件中定义特殊成员函数</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bevan c</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bevan c</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

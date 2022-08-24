@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.bevan.club","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="TLSTLS如何解决HTTP风险？  信息加密：HTTP交互信息被加密，第三方无法窃取。 校验机制：校验信息传输过程是否有第三方篡改，被篡改会警告。 身份证书：证明网站是真正的网站。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关于HTTPS">
+<meta property="og:url" content="http://www.bevan.club/2022/06/06/%E5%85%B3%E4%BA%8EHTTPS/index.html">
+<meta property="og:site_name" content="Bevan&#39;s Blog">
+<meta property="og:description" content="TLSTLS如何解决HTTP风险？  信息加密：HTTP交互信息被加密，第三方无法窃取。 校验机制：校验信息传输过程是否有第三方篡改，被篡改会警告。 身份证书：证明网站是真正的网站。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052337267.png?token=AHMFLSEZUU6NABAXMY5DRSDCTTG56">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052310398.png?token=AHMFLSDCMDLTXLE4QV7XR5TCTTDZO">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052319653.png?token=AHMFLSCTZNEEYJ4S5U6ZPZ3CTTE2W">
+<meta property="og:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052329198.png?token=AHMFLSAR7UE3ITIBUAHCWVTCTTGCQ">
+<meta property="article:published_time" content="2022-06-05T17:00:51.000Z">
+<meta property="article:modified_time" content="2022-08-23T15:25:30.425Z">
+<meta property="article:author" content="Bevan c">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="HTTPS">
+<meta property="article:tag" content="TLS">
+<meta property="article:tag" content="RSA">
+<meta property="article:tag" content="ECDHE">
+<meta property="article:tag" content="数字证书">
+<meta property="article:tag" content="CA机构">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052337267.png?token=AHMFLSEZUU6NABAXMY5DRSDCTTG56">
+
+<link rel="canonical" href="http://www.bevan.club/2022/06/06/%E5%85%B3%E4%BA%8EHTTPS/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>关于HTTPS | Bevan's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+<script type="text/javascript" src="/js/oh-my-diana.user.js"></script>
+
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Bevan's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>Schedule</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://www.bevan.club/2022/06/06/%E5%85%B3%E4%BA%8EHTTPS/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bevan c">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Bevan's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          关于HTTPS
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-06-06 01:00:51" itemprop="dateCreated datePublished" datetime="2022-06-06T01:00:51+08:00">2022-06-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-08-23 23:25:30" itemprop="dateModified" datetime="2022-08-23T23:25:30+08:00">2022-08-23</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/CS%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index"><span itemprop="name">CS笔记</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="TLS"><a href="#TLS" class="headerlink" title="TLS"></a>TLS</h2><p>TLS如何解决HTTP风险？</p>
+<ul>
+<li>信息加密：HTTP交互信息被加密，第三方无法窃取。</li>
+<li>校验机制：校验信息传输过程是否有第三方篡改，被篡改会警告。</li>
+<li>身份证书：证明网站是真正的网站。</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="TLS握手"><a href="#TLS握手" class="headerlink" title="TLS握手"></a>TLS握手</h2><p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052337267.png?token=AHMFLSEZUU6NABAXMY5DRSDCTTG56" alt="image-20220605233707220"></p>
+<p>每个框是个记录（record），记录TLS收发数据地基本单位。多个record可合并为同一个TCP包发送，通常是四个消息，即2RTT时延。不同的密钥交换算法，TLS握手过程可能有区别。</p>
+<p>双方在加密应用信息时使用对称加密密钥，对称加密密钥不能被泄露，为了保证对称密钥的安全，使用非对称加密来保护对称加密密钥的协商过程，这个工作就是密钥交换算法完成的。</p>
+<h2 id="RSA"><a href="#RSA" class="headerlink" title="RSA"></a>RSA</h2><p>传统的TLS握手基本使用RSA算法。服务端保存TLS证书，证书文件里有一对公私钥，TLS握手过程把公钥传给客户端，私钥存在服务端不能被窃取。</p>
+<p>RSA算法中，客户端产生随机密钥，通过服务端传来的公钥进行加密再传给服务端。非对称加密算法中，公钥加密的消息只能私钥解密，服务端解密后，双方得到相同的密钥，之后用这个相同的密钥加密消息。</p>
+<h3 id="第一次握手"><a href="#第一次握手" class="headerlink" title="第一次握手"></a>第一次握手</h3><p>客户发 <strong>Client Hello</strong>：TLS版本号，支持密码套件列表，<strong>生成的随机数（Client Random）</strong>，这个Client Random存在服务端，用来生成对称密钥。</p>
+<h3 id="第二次握手"><a href="#第二次握手" class="headerlink" title="第二次握手"></a>第二次握手</h3><p>服务端收到Client Hello，确认版本，选择密码套件，生成<strong>随机数（Server Random）</strong>。</p>
+<p>返回<strong>Server Hello</strong>消息，如密码套件Cipher Suite: TLS_RSA_WITH_AES_128_GCM_SHA256。形式基本是密钥交换算法+签名算法+对称加密算法+摘要算法。WITH前有2个单词，如果只有一个（例RSA），那就都用RSA。握手后通信用AES对称加密，密钥长度128位，分组模式GCM。摘要算法SHA256，消息认证和产生随机数。</p>
+<p>然后服务端发送<strong>Server Certificate</strong>证明自己身份，消息里包含数字证书。然后发送<strong>Server Hello Done</strong>，表示该给的东西都给了。</p>
+<h3 id="第三次握手"><a href="#第三次握手" class="headerlink" title="第三次握手"></a>第三次握手</h3><p>客户端验证证书后，可信就往下继续。客户端产生新的<strong>随机数（pre-master）</strong>，用RSA公钥加密该随机数，然后<strong>Change Cipher Key Exchange</strong>，服务端收到，用私钥解密，得到pre-master。</p>
+<p>共享三个随机数，根据这三个生成<strong>会话密钥（Master Secret）</strong>。生成完客户端发送<strong>Change Cipher Spec</strong>，告诉服务端开始使用会话密钥发送消息。再发送**Encrypted Handshake Message (Finished)**，把之前的发送的数据做摘要，用Master Secret加密发送到服务端做验证。</p>
+<h3 id="第四次握手"><a href="#第四次握手" class="headerlink" title="第四次握手"></a>第四次握手</h3><p>服务端也发送<strong>Change Cipher Spec</strong>和<strong>Encrypted Handshake Message</strong>，握手完成。</p>
+<h3 id="缺陷"><a href="#缺陷" class="headerlink" title="缺陷"></a>缺陷</h3><p>RSA密钥协商不支持前向保密。客户端发送的随机数是用服务端公钥解密的，因此如果服务端私钥被泄露了，过去所有截获的TLS通讯密文都会被破解。因此产生DH密钥交换算法，在这个过程中，双端生成各自的随机数，作为私钥，然后用公开的DH算法生成公钥，TLS握手过程中，双方交换公钥，然后双方根据各自持有的材料算出一个随机数，这个随机数双方是一样的，即作为后续对称加密的会话密钥。</p>
+<p>DH密钥交换中，即使第三方截取公钥，不知道私钥情况下，也无法算出密钥。私钥不经过网络传输，而且在会话结束后，双方会将私钥删除，即使长期使用的用来加密证书的公私钥对（Apub&#x2F;Apriv）被非法获取，以往监听到的加密数据也无法被破解，除非有能力拿到每次会话的DH私钥（几乎不可能）。</p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/question/45203206">(32 封私信 &#x2F; 80 条消息) 如何理解前向安全性？和完美前向保密（perfect forward secrecy）区别？ - 知乎 (zhihu.com)</a></p>
+<p>DH算法性能不太行，一般会用ECDHE密钥协商算法。</p>
+<h2 id="数字证书和CA机构"><a href="#数字证书和CA机构" class="headerlink" title="数字证书和CA机构"></a>数字证书和CA机构</h2><p>数字证书包含：</p>
+<ul>
+<li>公钥</li>
+<li>持有者信息</li>
+<li>证书认证机构（CA）的信息</li>
+<li>CA对这份文件的数字签名及使用的算法</li>
+<li>证书有效期</li>
+<li>额外信息</li>
+</ul>
+<p>数字证书来认证公钥持有者的身份，防止第三方冒充。即是告诉客户端，该服务端是否是合法的，因为只有证书合法，才代表服务端身份是可信的。</p>
+<p>服务端的证书是由CA（Certificate Authority，证书认证机构）签名的，签名的作用可以避免中间人在获取证书时对证书内容的篡改。</p>
+<h3 id="数字证书签发和验证流程"><a href="#数字证书签发和验证流程" class="headerlink" title="数字证书签发和验证流程"></a>数字证书签发和验证流程</h3><p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052310398.png?token=AHMFLSDCMDLTXLE4QV7XR5TCTTDZO" alt="image-20220605231019324"></p>
+<p>CA签发过程在左边：</p>
+<ul>
+<li><p>首先CA把持有者公钥、用途、颁发者、有效时间等信息打包，然后进行Hash计算，得到Hash值。</p>
+</li>
+<li><p>然后CA使用自己的私钥将Hash值加密，生成Certificate Signature，也就是CA对证书<strong>签名</strong>的过程。</p>
+</li>
+<li><p>最后将Certificate Signature添加在文件证书上，形成数字证书。</p>
+</li>
+</ul>
+<p>客户端校验在右边：</p>
+<ul>
+<li>客户端通过同样的Hash算法获取证书Hash值H1</li>
+<li>浏览器和操作系统中集成了CA的公钥，浏览器收到证书后可以使用CA公钥解密Certificate Signature内容，得到H2</li>
+<li>比较H1和H2，相同则可信</li>
+</ul>
+<h3 id="证书链"><a href="#证书链" class="headerlink" title="证书链"></a>证书链</h3><p>还存在证书信任链的问题。我们向CA申请的证书一般都不是根证书签发的，而是由中间证书签发的。</p>
+<p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052319653.png?token=AHMFLSCTZNEEYJ4S5U6ZPZ3CTTE2W" alt="image-20220605231910601"></p>
+<p>多级关系：</p>
+<ul>
+<li>客户端收到*.bilibili.com的证书后，发现签发者不是根证书，就无法根据本地已有的根证书中的公钥去验证*.bilibili.com证书是否可信。于是客户端根据签发者找到证书的颁发机构是GlobalSign RSA OV SSL CA 2018，然后向CA请该求中间证书。</li>
+<li>请求到证书后发现GlobalSign RSA OV SSL CA 2018证书是由GlobalSign签发的，发现也不是根证书，于是再向CA请求中间证书</li>
+<li>然后发现GlobalSign是由GlobalSign Root CA - R1签发，再往上也没有签发机构，说明是根证书，即自签证书。浏览器检查这个证书是否已经预载在根证书清单上，如果有就可以通过根证书中的公钥验证下级的证书，如果验证通过，就认为该中间证书是可信的。然后再验证下一层证书可信性，最终验证到*.bilibili.com，如果验证通过，就可以信任该证书。</li>
+</ul>
+<p>这个过程中，一开始客户端只信任根证书GlobalSign Root CA - R1，GlobalSign Root CA - R1信任GlobalSign证书，GlobalSign证书信任GlobalSign RSA OV SSL CA 2018，GlobalSign RSA OV SSL CA 2018信任*.bilibili.com证书。</p>
+<p>再往上，用户信任操作系统和浏览器的软件商，所以软件预载的根证书都被信任。</p>
+<p>证书信任链流程：</p>
+<p><img src="https://raw.githubusercontent.com/bevancheng/imgrepo/main/202206052329198.png?token=AHMFLSAR7UE3ITIBUAHCWVTCTTGCQ" alt="image-20220605232948160"></p>
+<p>为什么要搞证书链这么麻烦的流程？这么多中间层？</p>
+<p>是为了保证根证书绝对安全性，将根证书隔离地约严格越好，不然根证书失守，整个信任链就都有问题了。</p>
+<h2 id="DH算法"><a href="#DH算法" class="headerlink" title="DH算法"></a>DH算法</h2><h3 id="数学基础"><a href="#数学基础" class="headerlink" title="数学基础"></a>数学基础</h3><p>如果对于一个整数b和质数p的一个原根a，可以找到唯一的指数i使得：<br>$$<br>a^i (mod \quad p) &#x3D;b<br>$$<br>成立，那么指数i称为b的以a为底的模p的离散对数，b是真数。</p>
+<p>底数a和模数p是公共参数，知道了对数i，可以很容易地算出真数；但反过来只知道真数b，则很难推出指数i。</p>
+<h3 id="DH算法-1"><a href="#DH算法-1" class="headerlink" title="DH算法"></a>DH算法</h3><p>A端和B端协商用DH算法，基于离散对数，双方确定模数和底数为参数，用P、G代称。</p>
+<p>然后双方各自产生随机整数作为私钥，A的私钥Apriv，B的私钥Bpriv。</p>
+<p>可计算公钥<br>$$<br>Apub &#x3D; G^{Apriv}(mod\quad P)<br>$$</p>
+<p>$$<br>Bpub &#x3D; G^{Bpriv}(mod\quad P)<br>$$</p>
+<p>因此碍于计算机的计算能力，只知道pub计算出priv是非常困难的。</p>
+<p>交换DH公钥后，A端有：P、G、Apriv、Apub、Bpub，B端有：P、G、Bpriv、Bpub、Apub。</p>
+<p>A执行运算$K&#x3D;Bpub^{Apriv}(mod\quad P)$，B执行$K&#x3D;Apub^{Bpriv}(mod\quad P)$</p>
+<p>都是K的原因是离散对数具有幂运算交换不变性。<br>$$<br>K &#x3D; Bpub^{Apriv}(mod\quad P)&#x3D;(G^{Bpriv}(mod\quad P))^{Apriv}(mod\quad P)&#x3D;G^{Apriv\cdot Bpriv}(mod\quad P)<br>$$<br>非法的第三方可能能够得到：P、G、Apub、Bpub很难计算出会话密钥。</p>
+<h3 id="DHE算法"><a href="#DHE算法" class="headerlink" title="DHE算法"></a>DHE算法</h3><p>根据私钥生成方法，DH算法有两种实现：</p>
+<ul>
+<li>static DH，基本废弃</li>
+<li>DHE，现在常用</li>
+</ul>
+<p>static DH有一方的私钥是静态的，一般是服务端固定，客户端私钥随机生成。时间延长，第三方可能可以破解出服务端私钥，于是之前截获的加密数据会被破解（破解出的服务端私钥+截取的客户端pub&#x3D;会话密钥），因此staticDH不具有前向安全性。</p>
+<p>因此干脆让双方的私钥在每次交换时都是随机生成的、临时的。也就是DHE(ephemeral临时)。每次的通信过程的私钥都无关系，保证前向安全。</p>
+<h3 id="ECDHE"><a href="#ECDHE" class="headerlink" title="ECDHE"></a>ECDHE</h3><p>DHE计算性能不佳，碍于大量乘法计算。ECDHE算法在DHE算法基础上利用ECC椭圆曲线特性，用更少的计算量计算出公钥，及会话密钥。</p>
+<p>过程：</p>
+<ul>
+<li>双端确定用哪种椭圆曲线，和曲线上的基点G，这两个参数公开；</li>
+<li>双端随机生成一个随机数作为私钥d，与基点G相乘得到公钥Q（Q&#x3D;dG），A的公私钥是Q1和d1，B的是Q2和d2；</li>
+<li>交换公钥，A计算点（x1,y1) &#x3D; d1Q2，B计算点(x2,y2) &#x3D; d2Q1，椭圆曲线上满足乘法交换和结合律，d1Q2&#x3D;d1d2G&#x3D;d2d1G&#x3D;d2Q1，因此双方x坐标是相同的，作为共享密钥。</li>
+</ul>
+<p>ECDHE在TLS第四次握手前，客户端就已经发送了加密的HTTP数据，相比RSA握手省1RTT，被称为TLS False Start，在连接没完全建立前就发送了应用数据。</p>
+<ul>
+<li>TLS第一次握手：Client Hello，发送TLS版本号、密码套件列表、Client Random</li>
+<li>TLS第二次握手：Server Hello，选择的密码套件，Server Random；发送Certificate，有证书信息；发送Server Key Exchange，选择名为name_curve的椭圆曲线，也就选好了基点G，生成随机数作为服务端私钥，根据基点G和私钥计算服务器公钥，公开给客户端，RSA签名算法给公钥做个签名；Server Hello Done</li>
+<li>TLS第三次握手：客户端校验证书合法，生成随机数作为私钥，根据前面信息生成客户端椭圆曲线公钥，发送Client Key Exchange；用Client Random + Server Random + x生成最终的会话密钥；算完后发送Change Cipher Spec；发送Encrypted Handshake Message，摘要信息；</li>
+<li>TLS第四次握手：服务端发Change Cipher Spec，Encrypted Handshake Message。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" rel="tag"># 计算机网络</a>
+              <a href="/tags/HTTPS/" rel="tag"># HTTPS</a>
+              <a href="/tags/TLS/" rel="tag"># TLS</a>
+              <a href="/tags/RSA/" rel="tag"># RSA</a>
+              <a href="/tags/ECDHE/" rel="tag"># ECDHE</a>
+              <a href="/tags/%E6%95%B0%E5%AD%97%E8%AF%81%E4%B9%A6/" rel="tag"># 数字证书</a>
+              <a href="/tags/CA%E6%9C%BA%E6%9E%84/" rel="tag"># CA机构</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/06/05/C-WebServer%E6%97%A5%E5%BF%97%E5%AE%9E%E7%8E%B0/" rel="prev" title="C++WebServer日志实现">
+      <i class="fa fa-chevron-left"></i> C++WebServer日志实现
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/06/09/leveldb%E6%BA%90%E7%A0%81%E5%AD%A6%E4%B9%A0-1/" rel="next" title="leveldb源码学习-1">
+      leveldb源码学习-1 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TLS"><span class="nav-number">1.</span> <span class="nav-text">TLS</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TLS%E6%8F%A1%E6%89%8B"><span class="nav-number">2.</span> <span class="nav-text">TLS握手</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RSA"><span class="nav-number">3.</span> <span class="nav-text">RSA</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E6%AC%A1%E6%8F%A1%E6%89%8B"><span class="nav-number">3.1.</span> <span class="nav-text">第一次握手</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%BA%8C%E6%AC%A1%E6%8F%A1%E6%89%8B"><span class="nav-number">3.2.</span> <span class="nav-text">第二次握手</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B"><span class="nav-number">3.3.</span> <span class="nav-text">第三次握手</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E5%9B%9B%E6%AC%A1%E6%8F%A1%E6%89%8B"><span class="nav-number">3.4.</span> <span class="nav-text">第四次握手</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BC%BA%E9%99%B7"><span class="nav-number">3.5.</span> <span class="nav-text">缺陷</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E5%AD%97%E8%AF%81%E4%B9%A6%E5%92%8CCA%E6%9C%BA%E6%9E%84"><span class="nav-number">4.</span> <span class="nav-text">数字证书和CA机构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E5%AD%97%E8%AF%81%E4%B9%A6%E7%AD%BE%E5%8F%91%E5%92%8C%E9%AA%8C%E8%AF%81%E6%B5%81%E7%A8%8B"><span class="nav-number">4.1.</span> <span class="nav-text">数字证书签发和验证流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%81%E4%B9%A6%E9%93%BE"><span class="nav-number">4.2.</span> <span class="nav-text">证书链</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DH%E7%AE%97%E6%B3%95"><span class="nav-number">5.</span> <span class="nav-text">DH算法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E5%AD%A6%E5%9F%BA%E7%A1%80"><span class="nav-number">5.1.</span> <span class="nav-text">数学基础</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#DH%E7%AE%97%E6%B3%95-1"><span class="nav-number">5.2.</span> <span class="nav-text">DH算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#DHE%E7%AE%97%E6%B3%95"><span class="nav-number">5.3.</span> <span class="nav-text">DHE算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ECDHE"><span class="nav-number">5.4.</span> <span class="nav-text">ECDHE</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bevan c</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bevan c</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>
